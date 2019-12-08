@@ -95,7 +95,7 @@
         solo-inverted
         hide-details
         prepend-inner-icon="mdi-magnify"
-        label="Search"
+        label="Поиск"
         class="hidden-sm-and-down"
       />
       <v-spacer />

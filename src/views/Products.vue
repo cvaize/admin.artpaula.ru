@@ -1,5 +1,49 @@
 <template>
   <v-container fluid>
+    <v-navigation-drawer
+      v-model="drawer"
+      app
+      fixed
+      temporary
+      right
+    >
+      <div class="px-4 py-4">
+        <h3 class="text-center mb-3">Фильтр</h3>
+        <v-select label="Категория"
+                  clearable
+                  solo
+                  :items="[{text: 'Фотошторы', value: 1},{text: 'Римские фотошторы', value: 2}]"
+        />
+        <v-select label="Изображения"
+                  clearable
+                  solo
+                  :items="[{text: 'Без изображения', value: 1}]"
+        />
+        <v-select label="Метки"
+                  clearable
+                  solo
+                  :items="[{text: 'От дизайнера', value: 1},{text: 'Супер цена', value: 2}]"
+        />
+        <v-select label="Показывать"
+                  clearable
+                  solo
+                  :items="[{text: 'Опубликованные', value: 1},{text: 'Снято с публикации', value: 2}]"
+        />
+      </div>
+    </v-navigation-drawer>
+    <div class="d-flex align-center mb-4">
+      <v-text-field
+        flat
+        solo-inverted
+        hide-details
+        prepend-inner-icon="mdi-magnify"
+        label="Поиск"
+      />
+      <v-btn class="ml-3" icon large @click="drawer = !drawer">
+        <v-icon>mdi-filter-variant</v-icon>
+      </v-btn>
+      <v-spacer />
+    </div>
     <v-data-table
       v-model="selected"
       :headers="headers"
@@ -28,6 +72,7 @@
 export default {
   data () {
     return {
+      drawer: false,
       singleSelect: false,
       selected: [],
       headers: [
