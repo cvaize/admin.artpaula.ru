@@ -31,40 +31,62 @@
         />
       </div>
     </v-navigation-drawer>
-    <div class="d-flex align-center mb-4">
-      <v-text-field
-        flat
-        solo-inverted
-        hide-details
-        prepend-inner-icon="mdi-magnify"
-        label="Поиск"
-      />
-      <v-btn class="ml-3" icon large @click="drawer = !drawer">
-        <v-icon>mdi-filter-variant</v-icon>
-      </v-btn>
-      <v-spacer />
-    </div>
-    <v-data-table
-      v-model="selected"
-      :headers="headers"
-      :items="desserts"
-      item-key="name"
-      show-select
-      class="elevation-1"
-    >
-      <template v-slot:item.name="{ value }">
+    <v-card>
+      <v-card-title class="pt-0">
+        <v-text-field
+          v-model="search"
+          append-icon="mdi-magnify"
+          label="Поиск"
+          single-line
+          hide-details
+        />
+        <v-btn class="ml-3 mt-4" icon @click="drawer = !drawer">
+          <v-icon>mdi-filter</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-data-table
+        v-model="selected"
+        :headers="headers"
+        :items="desserts"
+        :hide-default-footer="false"
+        :items-per-page="20"
+        :search="search"
+        :footer-props="{
+        pagination: {
+          page: 1,
+          itemsPerPage: 20,
+          pageStart: 1,
+          pageStop: 2000,
+          pageCount: 2000,
+          itemsLength: 40000,
+        },
+      itemsPerPageOptions: [20, 100, 250, 500, 1000, -1],
+      showFirstLastPage: true
+    }"
+        item-key="name"
+        show-select
+        class="elevation-1"
+      >
+        <template v-slot:item.name="{ value }">
 
-        <v-tooltip bottom content-class="tooltip-img">
-          <template v-slot:activator="{ on }">
-            <span v-on="on"><v-icon>mdi-camera-image</v-icon></span>
-            <v-btn :to="{ name: 'products.show', params: { productId: 3 } }" text>{{ value }}</v-btn>
-          </template>
-          <span>
+          <v-tooltip bottom content-class="tooltip-img">
+            <template v-slot:activator="{ on }">
+              <span v-on="on"><v-icon>mdi-camera-image</v-icon></span>
+              <v-btn :to="{ name: 'products.show', params: { productId: 3 } }" text>{{ value }}</v-btn>
+            </template>
+            <span>
             <v-img width="100" height="100" contain src="https://picsum.photos/1000/1000?random" lazy-src="https://picsum.photos/300/300?random"/>
           </span>
-        </v-tooltip>
-      </template>
-    </v-data-table>
+          </v-tooltip>
+
+        </template>
+        <template v-slot:footer>
+
+          <v-data-footer :items-per-page-options="[20, 100, 250, 500, 1000, -1]"/>
+
+        </template>
+      </v-data-table>
+    </v-card>
   </v-container>
 </template>
 
@@ -72,6 +94,7 @@
 export default {
   data () {
     return {
+      search: '',
       drawer: false,
       singleSelect: false,
       selected: [],
@@ -91,8 +114,14 @@ export default {
         { text: 'Цена', value: 'price' },
         { text: 'Просмотры', value: 'hits' },
         { text: 'Сортировка', value: 'ordering' },
-        { text: 'ID', value: 'id' }
+        { text: 'ID', value: 'id' },
+        { text: 'Действия', value: 'action' }
       ],
+      footer: {
+        options: {
+          itemsPerPage: 100
+        }
+      },
       desserts: [
         {
           name: 'Frozen Yogurt',

@@ -136,6 +136,7 @@ export default {
     drawer: null,
     items: [
       { icon: 'mdi-briefcase-outline', text: 'Товары', to: { name: 'products.index' } },
+      { icon: 'mdi-alpha-a-box', text: 'Атрибуты', to: { name: 'attrs.index' } },
       { icon: 'mdi-history', text: 'Frequently contacted' },
       { icon: 'mdi-content-copy', text: 'Duplicates' },
       {

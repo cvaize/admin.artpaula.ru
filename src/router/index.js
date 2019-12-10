@@ -11,20 +11,19 @@ const routes = [
     component: Home
   },
   {
+    path: '/attrs',
+    name: 'attrs.index',
+    component: () => import('../views/Attrs.vue')
+  },
+  {
     path: '/products',
     name: 'products.index',
-    // route level code-splitting
-    // this generates a separate chunk (about.[hash].js) for this route
-    // which is lazy-loaded when the route is visited.
-    component: () => import(/* webpackChunkName: "about" */ '../views/Products.vue')
+    component: () => import('../views/Products.vue')
   },
   {
     path: '/products/:productId',
     name: 'products.show',
-    // route level code-splitting
-    // this generates a separate chunk (about.[hash].js) for this route
-    // which is lazy-loaded when the route is visited.
-    component: () => import(/* webpackChunkName: "about" */ '../views/Product.vue')
+    component: () => import('../views/Product.vue')
   }
 ]
 
