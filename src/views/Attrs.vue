@@ -75,7 +75,12 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    <v-card>
+    <v-skeleton-loader
+      v-if="loadingAttrs"
+      type="table"
+    />
+    <v-card
+      v-else>
       <v-card-title class="pt-0">
         <v-tooltip bottom>
           <template v-slot:activator="{ on }">
@@ -120,14 +125,51 @@
       <v-data-table
         v-model="selected"
         :headers="headers"
-        :items="desserts"
+        :items="attrs"
         :hide-default-footer="true"
         :items-per-page="1000000"
         :search="search"
         item-key="name"
         show-select
-        class="elevation-1"
-      />
+        class="elevation-1 table-sorting"
+      >
+        <template v-slot:item.name="{ value }">
+          <span v-html="getSearchValue(search, value)"/>
+        </template>
+        <template v-slot:item.valuesStr="{ value }">
+          <router-link to="">Опции</router-link>(<span v-html="getSearchValue(search, value)"/>)
+        </template>
+        <template v-slot:item.group="{ item }">
+          {{ groupsObj[item.attribute_group_id] && groupsObj[item.attribute_group_id].name }}
+        </template>
+        <template v-slot:item.dependent="{ value }">
+          {{ value?'Да':'Нет' }}
+        </template>
+        <template v-slot:item.action="{ item }">
+          <div class="d-flex align-center">
+            <v-skeleton-loader
+              v-if="!item.id"
+              type="button"
+            />
+            <v-tooltip v-if="item.id" bottom>
+              <template v-slot:activator="{ on }">
+                <v-btn icon v-on="on">
+                  <v-icon>mdi-square-edit-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>Редактировать</span>
+            </v-tooltip>
+            <v-tooltip v-if="item.id" bottom>
+              <template v-slot:activator="{ on }">
+                <v-btn icon v-on="on">
+                  <v-icon>mdi-delete-forever</v-icon>
+                </v-btn>
+              </template>
+              <span>Удалить</span>
+            </v-tooltip>
+          </div>
+        </template>
+      </v-data-table>
     </v-card>
   </v-container>
 </template>
@@ -152,6 +194,7 @@ export default {
     return {
       group: 1,
       radios: '1',
+      loadingAttrs: true,
       dialogAddAttr: false,
       search: '',
       drawer: false,
@@ -170,38 +213,50 @@ export default {
           text: 'Опции',
           align: 'left',
           sortable: false,
-          value: 'options'
+          value: 'valuesStr'
         },
         { text: 'Зависимый', value: 'dependent' },
         { text: 'Группа', value: 'group' },
         { text: 'Сортировка', value: 'ordering' },
         { text: 'ID', value: 'id' },
-        { text: 'Действия', value: 'action' }
+        { text: 'Действия', value: 'action', sortable: false }
       ],
       footer: {
         options: {
           itemsPerPage: 100
         }
-      },
-      desserts: []
+      }
     }
   },
   computed: {
     ...mapGetters({
-      groups: 'attrs/groups'
+      groups: 'attrs/groups',
+      groupsObj: 'attrs/groupsObj',
+      attrs: 'attrs/attrs'
     })
   },
   methods: {
     ...mapActions({
-      fetchGroups: 'attrs/fetchGroups'
-    })
+      fetchGroups: 'attrs/fetchGroups',
+      fetchAttrs: 'attrs/fetchAttrs'
+    }),
+    getSearchValue (search, value) {
+      if (!search) {
+        return value
+      }
+      // eslint-disable-next-line no-useless-escape
+      return value.replace(new RegExp('(' + search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&').split(' ').join('|') + ')', 'gi'), '<mark>$1</mark>')
+    }
   },
   async mounted () {
+    this.loadingAttrs = !this.attrs.length
     await this.fetchGroups()
     if (this.groups[0]) {
       this.defaultForm.attribute_group_id = this.groups[0].id
       this.form.attribute_group_id = this.groups[0].id
     }
+    await this.fetchAttrs()
+    this.loadingAttrs = false
   }
 }
 </script>

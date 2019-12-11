@@ -193,4 +193,11 @@ export default {
     padding: 0!important;
     overflow: hidden;
   }
+  .table-sorting{
+    thead{
+      th{
+        white-space: nowrap;
+      }
+    }
+  }
 </style>

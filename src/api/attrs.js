@@ -1,11 +1,8 @@
 import axios from 'axios'
 
-export const getGroups = function () {
+export const getAttrGroups = function () {
   return axios.get('/attrs-group')
 }
-
-const api = {
-  getGroups
+export const getAttrs = function () {
+  return axios.get('/attrs')
 }
-
-export default api
