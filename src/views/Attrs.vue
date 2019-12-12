@@ -91,25 +91,14 @@
           <span>Удалить выбранные</span>
         </v-tooltip>
         <v-row>
-          <v-col md>
+          <v-col>
             <v-text-field
               v-model="search"
               append-icon="mdi-magnify"
-              label="Поиск"
+              label="Поиск по наименованию, опциям, группе"
               single-line
               hide-details
-            />
-          </v-col>
-          <v-col md="3">
-            <v-select
-              label="Группа"
-              placeholder="Все атрибуты"
-              :items="groups"
-              item-text="name"
-              item-value="id"
               clearable
-              single-line
-              hide-details
             />
           </v-col>
         </v-row>
@@ -136,11 +125,11 @@
         <template v-slot:item.name="{ value }">
           <span v-html="getSearchValue(search, value)"/>
         </template>
-        <template v-slot:item.valuesStr="{ value }">
+        <template v-slot:item.values_str="{ value }">
           <router-link to="">Опции</router-link>(<span v-html="getSearchValue(search, value)"/>)
         </template>
-        <template v-slot:item.group="{ item }">
-          {{ groupsObj[item.attribute_group_id] && groupsObj[item.attribute_group_id].name }}
+        <template v-slot:item.group_name="{ value }">
+          <span v-html="getSearchValue(search, value)"/>
         </template>
         <template v-slot:item.dependent="{ value }">
           {{ value?'Да':'Нет' }}
@@ -213,10 +202,10 @@ export default {
           text: 'Опции',
           align: 'left',
           sortable: false,
-          value: 'valuesStr'
+          value: 'values_str'
         },
         { text: 'Зависимый', value: 'dependent' },
-        { text: 'Группа', value: 'group' },
+        { text: 'Группа', value: 'group_name' },
         { text: 'Сортировка', value: 'ordering' },
         { text: 'ID', value: 'id' },
         { text: 'Действия', value: 'action', sortable: false }
@@ -237,7 +226,7 @@ export default {
   },
   methods: {
     ...mapActions({
-      fetchGroups: 'attrs/fetchGroups',
+      fetchAttrsWithGroups: 'attrs/fetchAttrsWithGroups',
       fetchAttrs: 'attrs/fetchAttrs'
     }),
     getSearchValue (search, value) {
@@ -250,12 +239,11 @@ export default {
   },
   async mounted () {
     this.loadingAttrs = !this.attrs.length
-    await this.fetchGroups()
+    await this.fetchAttrsWithGroups()
     if (this.groups[0]) {
       this.defaultForm.attribute_group_id = this.groups[0].id
       this.form.attribute_group_id = this.groups[0].id
     }
-    await this.fetchAttrs()
     this.loadingAttrs = false
   }
 }

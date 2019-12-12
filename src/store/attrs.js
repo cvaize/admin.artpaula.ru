@@ -19,13 +19,7 @@ const mutations = {
   SET_ATTRS (state, attrs) {
     let attrsObj = {}
     for (let i = 0; i < attrs.length; i++) {
-      attrs[i].valuesStr = ''
-      for (let j = 0; j < attrs[i].values.length; j++) {
-        if (j !== 0) {
-          attrs[i].valuesStr += ', '
-        }
-        attrs[i].valuesStr += attrs[i].values[j].name
-      }
+      attrs[i].group_name = state.groupsObj[attrs[i].attribute_group_id] ? state.groupsObj[attrs[i].attribute_group_id].name : ''
       attrsObj[attrs[i].id] = attrs[i]
     }
     state.attrs = attrs
@@ -45,6 +39,14 @@ const actions = {
     try {
       let { data } = await getAttrs()
       commit('SET_ATTRS', data)
+    } catch (e) {
+    }
+  },
+  async fetchAttrsWithGroups ({ commit }) {
+    try {
+      let [ groups, attrs ] = await Promise.all([getAttrGroups(), getAttrs()])
+      commit('SET_GROUPS', groups.data)
+      commit('SET_ATTRS', attrs.data)
     } catch (e) {
     }
   }
