@@ -9,3 +9,6 @@ export const getAttrs = function () {
 export const uploadAttrs = function (data) {
   return axios.post('/attrs', data)
 }
+export const deleteAttrs = function (attrsId) {
+  return axios.delete('/attrs', { params: { attrs: attrsId } })
+}

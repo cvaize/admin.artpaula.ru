@@ -8,9 +8,8 @@
         <v-card-title
           class="headline grey lighten-2"
           primary-title
-        >
-          Создание атрибута
-        </v-card-title>
+          v-text="form.id?'Изменение атрибута':'Создание атрибута'"
+        />
 
         <v-card-text>
           <v-form v-model="formValid" ref="form" @submit="submitForm">
@@ -42,12 +41,12 @@
               <template v-slot:label>
                 <div>Зависимый атрибут</div>
               </template>
-              <v-radio :value="true" color="primary">
+              <v-radio :value="1" color="primary">
                 <template v-slot:label>
                   <div>Да, он будет обязательным и от него напрямую будет зависить цена</div>
                 </template>
               </v-radio>
-              <v-radio :value="false" color="primary">
+              <v-radio :value="0" color="primary">
                 <template v-slot:label>
                   <div>Нет, он будет лишь + к стоимости товара</div>
                 </template>
@@ -68,7 +67,7 @@
           </v-btn>
           <v-tooltip top>
             <template v-slot:activator="{ on }">
-              <v-btn icon v-on="on" @click="setDefaultCreate">
+              <v-btn icon v-on="on" @click="setDefaultCreate(form.id, true)">
                 <v-icon>mdi-refresh</v-icon>
               </v-btn>
             </template>
@@ -79,9 +78,7 @@
             color="primary"
             text
             @click="submitForm"
-          >
-            Создать
-          </v-btn>
+          v-text="form.id?'Сохранить':'Создать'"/>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -94,7 +91,7 @@
       <v-card-title class="pt-0">
         <v-tooltip bottom>
           <template v-slot:activator="{ on }">
-            <v-btn class="mr-3 mt-5" icon v-on="on">
+            <v-btn class="mr-3 mt-5" icon v-on="on" @click="onClickDelete(selectedAttrs)">
               <v-icon>mdi-delete-forever</v-icon>
             </v-btn>
           </template>
@@ -122,7 +119,7 @@
         </v-tooltip>
         <v-tooltip bottom>
           <template v-slot:activator="{ on }">
-            <v-btn class="ml-3 mt-5" icon v-on="on" @click="dialogAddAttr = true">
+            <v-btn class="ml-3 mt-5" icon v-on="on" @click="openDialogAddAttr">
               <v-icon>mdi-plus-box-outline</v-icon>
             </v-btn>
           </template>
@@ -173,7 +170,7 @@
             />
             <v-tooltip v-if="item.id" bottom>
               <template v-slot:activator="{ on }">
-                <v-btn icon v-on="on">
+                <v-btn icon v-on="on" @click="openDialogAddAttr(item.id)">
                   <v-icon>mdi-square-edit-outline</v-icon>
                 </v-btn>
               </template>
@@ -181,7 +178,7 @@
             </v-tooltip>
             <v-tooltip v-if="item.id" bottom>
               <template v-slot:activator="{ on }">
-                <v-btn icon v-on="on">
+                <v-btn icon v-on="on" @click="onClickDelete([item])">
                   <v-icon>mdi-delete-forever</v-icon>
                 </v-btn>
               </template>
@@ -203,10 +200,10 @@ const defaultForm = function () {
     name: null,
     name_admin: null,
     placeholder: null,
-    use_placeholder: true,
-    dependent: true,
+    use_placeholder: 1,
+    dependent: 1,
     attribute_group_id: 1,
-    ignore_group_copy: false
+    ignore_group_copy: 0
   }
 }
 
@@ -214,7 +211,7 @@ export default {
   data () {
     return {
       timeout: null,
-      timeoutTime: 0, // Установите 0, для отключения, измеряется в милисекундах
+      timeoutTime: 5000, // Установите 0, для отключения, измеряется в милисекундах
       formValid: false,
       nameRules: [
         v => !!v || 'Обязательно укажите наименование'
@@ -253,6 +250,7 @@ export default {
       groups: 'attrs/groups',
       groupsObj: 'attrs/groupsObj',
       attrs: 'attrs/attrs',
+      attrsObj: 'attrs/attrsObj',
       uploadAttrs: 'attrs/uploadAttrs'
     }),
     items () {
@@ -263,14 +261,19 @@ export default {
     ...mapActions({
       fetchAttrsWithGroups: 'attrs/fetchAttrsWithGroups',
       fetchAttrs: 'attrs/fetchAttrs',
-      addUploadAttribute: 'attrs/addUploadAttribute'
+      addUploadAttribute: 'attrs/addUploadAttribute',
+      deleteAttrs: 'attrs/deleteAttrs'
     }),
     resetValidation () {
       this.$refs.form.resetValidation()
     },
-    setDefaultCreate () {
-      this.form = { ...this.defaultForm }
-      this.resetValidation()
+    setDefaultCreate (id, reset) {
+      if (id && this.attrsObj[id]) {
+        this.form = { ...this.attrsObj[id] }
+      } else {
+        this.form = { ...this.defaultForm }
+      }
+      reset && this.resetValidation()
     },
     submitForm () {
       if (this.$refs.form.validate()) {
@@ -279,7 +282,7 @@ export default {
       }
     },
     getSearchValue (search, value) {
-      if (!search) {
+      if (!search || !value) {
         return value
       }
       // eslint-disable-next-line no-useless-escape
@@ -287,12 +290,30 @@ export default {
     },
     async refresh () {
       this.loadingAttrs = true
-      await this.fetchAttrs()
+      await this.timeoutFetchAttrs(this)
       this.loadingAttrs = false
     },
     async timeoutFetchAttrs (th) {
+      clearTimeout(th.timeout)
       await th.fetchAttrs()
-      th.timeout = setTimeout(th.timeoutFetchAttrs, th.timeoutTime, th)
+      if (th.timeoutTime) {
+        th.timeout = setTimeout(th.timeoutFetchAttrs, th.timeoutTime, th)
+      }
+    },
+    async onClickDelete (items) {
+      if (items.length === 1) {
+        confirm(`Удалить "${items[0].name}"?`) && this.deleteAttrs(items)
+      } else {
+        confirm('Удалить выбранные атрибуты?') && this.deleteAttrs(items)
+      }
+      if (this.timeoutTime) {
+        clearTimeout(this.timeout)
+        this.timeout = setTimeout(this.timeoutFetchAttrs, this.timeoutTime, this)
+      }
+    },
+    openDialogAddAttr (id) {
+      this.setDefaultCreate(id)
+      this.dialogAddAttr = true
     }
   },
   async mounted () {
