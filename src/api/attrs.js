@@ -6,3 +6,6 @@ export const getAttrGroups = function () {
 export const getAttrs = function () {
   return axios.get('/attrs')
 }
+export const uploadAttrs = function (data) {
+  return axios.post('/attrs', data)
+}

@@ -13,45 +13,47 @@
         </v-card-title>
 
         <v-card-text>
-          <v-text-field label="Наименование*" v-model="form.name" />
-          <v-text-field label="Заполнитель" v-model="form.placeholder" />
-          <v-switch
-            label="Использовать заполнитель"
-            color="primary"
-            hide-details
-            v-model="form.use_placeholder"
-          />
-          <v-radio-group v-model="form.attribute_group_id">
-            <template v-slot:label>
-              <div>Группа</div>
-            </template>
-            <v-radio v-for="(group, key) in groups" :key="key" :value="group.id" color="primary">
+          <v-form v-model="formValid" ref="form" @submit="submitForm">
+            <v-text-field label="Наименование*" v-model="form.name" :rules="nameRules"/>
+            <v-text-field label="Заполнитель" v-model="form.placeholder" />
+            <v-switch
+              label="Использовать заполнитель"
+              color="primary"
+              hide-details
+              v-model="form.use_placeholder"
+            />
+            <v-radio-group v-model="form.attribute_group_id" hide-details>
               <template v-slot:label>
-                <div v-text="group.name"/>
+                <div>Группа</div>
               </template>
-            </v-radio>
-          </v-radio-group>
-          <v-switch
-            label="Игнорировать при групповом копировании (только для независимых атрибутов)"
-            color="primary"
-            hide-details
-            v-model="form.ignore_group_copy"
-          />
-          <v-radio-group v-model="form.type_id">
-            <template v-slot:label>
-              <div>Зависимый атрибут</div>
-            </template>
-            <v-radio :value="1" color="primary">
+              <v-radio v-for="(group, key) in groups" :key="key" :value="group.id" color="primary">
+                <template v-slot:label>
+                  <div v-text="group.name"/>
+                </template>
+              </v-radio>
+            </v-radio-group>
+            <v-switch
+              label="Игнорировать при групповом копировании (только для независимых атрибутов)"
+              color="primary"
+              hide-details
+              v-model="form.ignore_group_copy"
+            />
+            <v-radio-group v-model="form.dependent">
               <template v-slot:label>
-                <div>Да, он будет обязательным и от него напрямую будет зависить цена</div>
+                <div>Зависимый атрибут</div>
               </template>
-            </v-radio>
-            <v-radio :value="0" color="primary">
-              <template v-slot:label>
-                <div>Нет, он будет лишь + к стоимости товара</div>
-              </template>
-            </v-radio>
-          </v-radio-group>
+              <v-radio :value="true" color="primary">
+                <template v-slot:label>
+                  <div>Да, он будет обязательным и от него напрямую будет зависить цена</div>
+                </template>
+              </v-radio>
+              <v-radio :value="false" color="primary">
+                <template v-slot:label>
+                  <div>Нет, он будет лишь + к стоимости товара</div>
+                </template>
+              </v-radio>
+            </v-radio-group>
+          </v-form>
         </v-card-text>
 
         <v-divider/>
@@ -64,11 +66,19 @@
           >
             Отмена
           </v-btn>
+          <v-tooltip top>
+            <template v-slot:activator="{ on }">
+              <v-btn icon v-on="on" @click="setDefaultCreate">
+                <v-icon>mdi-refresh</v-icon>
+              </v-btn>
+            </template>
+            <span>Сбросить форму</span>
+          </v-tooltip>
           <v-spacer/>
           <v-btn
             color="primary"
             text
-            @click="dialogAddAttr = false"
+            @click="submitForm"
           >
             Создать
           </v-btn>
@@ -104,6 +114,14 @@
         </v-row>
         <v-tooltip bottom>
           <template v-slot:activator="{ on }">
+            <v-btn class="ml-3 mt-5" icon v-on="on" @click="refresh">
+              <v-icon>mdi-refresh</v-icon>
+            </v-btn>
+          </template>
+          <span>Обновить список</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on }">
             <v-btn class="ml-3 mt-5" icon v-on="on" @click="dialogAddAttr = true">
               <v-icon>mdi-plus-box-outline</v-icon>
             </v-btn>
@@ -112,9 +130,9 @@
         </v-tooltip>
       </v-card-title>
       <v-data-table
-        v-model="selected"
+        v-model="selectedAttrs"
         :headers="headers"
-        :items="attrs"
+        :items="items"
         :hide-default-footer="true"
         :items-per-page="1000000"
         :search="search"
@@ -125,8 +143,21 @@
         <template v-slot:item.name="{ value }">
           <span v-html="getSearchValue(search, value)"/>
         </template>
-        <template v-slot:item.values_str="{ value }">
-          <router-link to="">Опции</router-link>(<span v-html="getSearchValue(search, value)"/>)
+        <template v-slot:item.values_str="{ value, item }">
+          <v-skeleton-loader
+            v-if="!item.id"
+            type="text"
+          />
+          <template v-else>
+            <router-link to="">Опции</router-link>(<span v-html="getSearchValue(search, value)"/>)
+          </template>
+        </template>
+        <template v-slot:item.id="{ value }">
+          <v-skeleton-loader
+            v-if="!value"
+            type="text"
+          />
+          <template v-else>{{ value }}</template>
         </template>
         <template v-slot:item.group_name="{ value }">
           <span v-html="getSearchValue(search, value)"/>
@@ -168,11 +199,12 @@ import { mapGetters, mapActions } from 'vuex'
 
 const defaultForm = function () {
   return {
+    id: null,
     name: null,
     name_admin: null,
     placeholder: null,
     use_placeholder: true,
-    type_id: 1,
+    dependent: true,
     attribute_group_id: 1,
     ignore_group_copy: false
   }
@@ -181,14 +213,18 @@ const defaultForm = function () {
 export default {
   data () {
     return {
-      group: 1,
-      radios: '1',
+      timeout: null,
+      timeoutTime: 0, // Установите 0, для отключения, измеряется в милисекундах
+      formValid: false,
+      nameRules: [
+        v => !!v || 'Обязательно укажите наименование'
+      ],
       loadingAttrs: true,
       dialogAddAttr: false,
       search: '',
       drawer: false,
       singleSelect: false,
-      selected: [],
+      selectedAttrs: [],
       defaultForm: defaultForm(),
       form: defaultForm(),
       headers: [
@@ -209,32 +245,54 @@ export default {
         { text: 'Сортировка', value: 'ordering' },
         { text: 'ID', value: 'id' },
         { text: 'Действия', value: 'action', sortable: false }
-      ],
-      footer: {
-        options: {
-          itemsPerPage: 100
-        }
-      }
+      ]
     }
   },
   computed: {
     ...mapGetters({
       groups: 'attrs/groups',
       groupsObj: 'attrs/groupsObj',
-      attrs: 'attrs/attrs'
-    })
+      attrs: 'attrs/attrs',
+      uploadAttrs: 'attrs/uploadAttrs'
+    }),
+    items () {
+      return [...this.uploadAttrs, ...this.attrs]
+    }
   },
   methods: {
     ...mapActions({
       fetchAttrsWithGroups: 'attrs/fetchAttrsWithGroups',
-      fetchAttrs: 'attrs/fetchAttrs'
+      fetchAttrs: 'attrs/fetchAttrs',
+      addUploadAttribute: 'attrs/addUploadAttribute'
     }),
+    resetValidation () {
+      this.$refs.form.resetValidation()
+    },
+    setDefaultCreate () {
+      this.form = { ...this.defaultForm }
+      this.resetValidation()
+    },
+    submitForm () {
+      if (this.$refs.form.validate()) {
+        this.addUploadAttribute(this.form)
+        this.dialogAddAttr = false
+      }
+    },
     getSearchValue (search, value) {
       if (!search) {
         return value
       }
       // eslint-disable-next-line no-useless-escape
       return value.replace(new RegExp('(' + search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&').split(' ').join('|') + ')', 'gi'), '<mark>$1</mark>')
+    },
+    async refresh () {
+      this.loadingAttrs = true
+      await this.fetchAttrs()
+      this.loadingAttrs = false
+    },
+    async timeoutFetchAttrs (th) {
+      await th.fetchAttrs()
+      th.timeout = setTimeout(th.timeoutFetchAttrs, th.timeoutTime, th)
     }
   },
   async mounted () {
@@ -245,6 +303,12 @@ export default {
       this.form.attribute_group_id = this.groups[0].id
     }
     this.loadingAttrs = false
+    if (this.timeoutTime) {
+      this.timeout = setTimeout(this.timeoutFetchAttrs, this.timeoutTime, this)
+    }
+  },
+  beforeDestroy () {
+    clearTimeout(this.timeout)
   }
 }
 </script>
