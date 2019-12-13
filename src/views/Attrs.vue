@@ -91,7 +91,7 @@
       <v-card-title class="pt-0">
         <v-tooltip bottom>
           <template v-slot:activator="{ on }">
-            <v-btn class="mr-3 mt-5" icon v-on="on" @click="onClickDelete(selectedAttrs)">
+            <v-btn :disabled="sortMode" class="mr-3 mt-5" icon v-on="on" @click="onClickDelete(selectedAttrs)">
               <v-icon>mdi-delete-forever</v-icon>
             </v-btn>
           </template>
@@ -100,9 +100,10 @@
         <v-row>
           <v-col>
             <v-text-field
+              :disabled="sortMode"
               v-model="search"
               append-icon="mdi-magnify"
-              label="Поиск по наименованию, опциям, группе"
+              :label="searchPlaceholder"
               single-line
               hide-details
               clearable
@@ -111,20 +112,48 @@
         </v-row>
         <v-tooltip bottom>
           <template v-slot:activator="{ on }">
-            <v-btn class="ml-3 mt-5" icon v-on="on" @click="refresh">
-              <v-icon>mdi-refresh</v-icon>
+            <v-btn :disabled="sortMode || !!uploadAttrs.length" class="ml-3 mt-5" icon v-on="on" @click="enableSortingMode">
+              <v-icon>mdi-sort-descending</v-icon>
             </v-btn>
           </template>
-          <span>Обновить список</span>
+          <span>Включить режим сортировки</span>
         </v-tooltip>
-        <v-tooltip bottom>
-          <template v-slot:activator="{ on }">
-            <v-btn class="ml-3 mt-5" icon v-on="on" @click="openDialogAddAttr">
-              <v-icon>mdi-plus-box-outline</v-icon>
-            </v-btn>
-          </template>
-          <span>Добавить атрибут</span>
-        </v-tooltip>
+        <template v-if="sortMode">
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on }">
+              <v-btn color="success" class="ml-3 mt-5" icon v-on="on" @click="saveOrdering">
+                <v-icon>mdi-check-bold</v-icon>
+              </v-btn>
+            </template>
+            <span>Сохранить сортировку</span>
+          </v-tooltip>
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on }">
+              <v-btn color="error" class="ml-3 mt-5" icon v-on="on" @click="cancelOrdering">
+                <v-icon>mdi-cancel</v-icon>
+              </v-btn>
+            </template>
+            <span>Отменить изменения</span>
+          </v-tooltip>
+        </template>
+        <template v-else>
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on }">
+              <v-btn class="ml-3 mt-5" icon v-on="on" @click="refresh">
+                <v-icon>mdi-refresh</v-icon>
+              </v-btn>
+            </template>
+            <span>Обновить список</span>
+          </v-tooltip>
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on }">
+              <v-btn class="ml-3 mt-5" icon v-on="on" @click="openDialogAddAttr">
+                <v-icon>mdi-plus-box-outline</v-icon>
+              </v-btn>
+            </template>
+            <span>Добавить атрибут</span>
+          </v-tooltip>
+        </template>
       </v-card-title>
       <v-data-table
         v-model="selectedAttrs"
@@ -136,6 +165,7 @@
         item-key="name"
         show-select
         class="elevation-1 table-sorting"
+        :disable-sort="sortMode"
       >
         <template v-slot:item.name="{ value }">
           <span v-html="getSearchValue(search, value)"/>
@@ -164,26 +194,54 @@
         </template>
         <template v-slot:item.action="{ item }">
           <div class="d-flex align-center">
-            <v-skeleton-loader
-              v-if="!item.id"
-              type="button"
-            />
-            <v-tooltip v-if="item.id" bottom>
-              <template v-slot:activator="{ on }">
-                <v-btn icon v-on="on" @click="openDialogAddAttr(item.id)">
-                  <v-icon>mdi-square-edit-outline</v-icon>
-                </v-btn>
+            <template v-if="!item.id || sortMode && !selectedAttrs.length">
+              <v-skeleton-loader
+                type="button"
+              />
+            </template>
+            <template v-else-if="sortMode && selectedAttrs.length">
+              <template v-if="selectedAttrs.length === items.length || selectedAttrsIds.indexOf(item.id) !== -1">
+                <v-skeleton-loader
+                  type="button"
+                />
               </template>
-              <span>Редактировать</span>
-            </v-tooltip>
-            <v-tooltip v-if="item.id" bottom>
-              <template v-slot:activator="{ on }">
-                <v-btn icon v-on="on" @click="onClickDelete([item])">
-                  <v-icon>mdi-delete-forever</v-icon>
-                </v-btn>
+              <template v-else>
+                <v-tooltip bottom>
+                  <template v-slot:activator="{ on }">
+                    <v-btn :disabled="getDisabledUpBtn(item)" icon v-on="on" >
+                      <v-icon>mdi-arrow-up-bold-outline</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>Поместить выбранное наверх</span>
+                </v-tooltip>
+                <v-tooltip bottom>
+                  <template v-slot:activator="{ on }">
+                    <v-btn :disabled="getDisabledDownBtn(item)" icon v-on="on" >
+                      <v-icon>mdi-arrow-down-bold-outline</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>Поместить выбранное вниз</span>
+                </v-tooltip>
               </template>
-              <span>Удалить</span>
-            </v-tooltip>
+            </template>
+            <template v-else>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on }">
+                  <v-btn icon v-on="on" @click="openDialogAddAttr(item.id)">
+                    <v-icon>mdi-square-edit-outline</v-icon>
+                  </v-btn>
+                </template>
+                <span>Редактировать</span>
+              </v-tooltip>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on }">
+                  <v-btn icon v-on="on" @click="onClickDelete([item])">
+                    <v-icon>mdi-delete-forever</v-icon>
+                  </v-btn>
+                </template>
+                <span>Удалить</span>
+              </v-tooltip>
+            </template>
           </div>
         </template>
       </v-data-table>
@@ -216,14 +274,20 @@ export default {
       nameRules: [
         v => !!v || 'Обязательно укажите наименование'
       ],
+      sortMode: false,
       loadingAttrs: true,
       dialogAddAttr: false,
       search: '',
       drawer: false,
       singleSelect: false,
       selectedAttrs: [],
+      selectedAttrsIds: [],
+      sortAttrs: [],
       defaultForm: defaultForm(),
       form: defaultForm(),
+      itemsIndexes: {},
+      itemsIds: {},
+      items: [],
       headers: [
         {
           text: 'Наименование',
@@ -253,8 +317,31 @@ export default {
       attrsObj: 'attrs/attrsObj',
       uploadAttrs: 'attrs/uploadAttrs'
     }),
+    searchPlaceholder () {
+      let text = 'Поиск по наименованию, опциям, группе'
+      if (this.sortMode && this.selectedAttrs.length) {
+        text = 'Выберите атрибуты для перемещения'
+        if (this.selectedAttrs.length === this.items.length) {
+          text = 'Нельзя изменить сортировку всех атрибутов'
+        }
+      }
+      return text
+    }
+  },
+  watch: {
+    uploadAttrs () {
+      this.setItems()
+    },
+    attrs () {
+      this.setItems()
+    },
     items () {
-      return [...this.uploadAttrs, ...this.attrs]
+      if (this.sortMode) {
+        this.generateSortModeIndexes()
+      }
+    },
+    selectedAttrs () {
+      this.selectedAttrsIds = this.selectedAttrs.map(value => value.id)
     }
   },
   methods: {
@@ -264,6 +351,22 @@ export default {
       addUploadAttribute: 'attrs/addUploadAttribute',
       deleteAttrs: 'attrs/deleteAttrs'
     }),
+    generateSortModeIndexes () {
+      let items = [...this.items]
+      let itemsIndexes = {}
+      let itemsIds = {}
+      items.reverse().forEach(function (value, index) {
+        itemsIds[index] = value.id
+        itemsIndexes[value.id] = index
+      })
+      this.itemsIndexes = itemsIndexes
+      this.itemsIds = itemsIds
+    },
+    setItems () {
+      if (!this.sortMode) {
+        this.items = [...this.uploadAttrs, ...this.attrs]
+      }
+    },
     resetValidation () {
       this.$refs.form.resetValidation()
     },
@@ -293,12 +396,15 @@ export default {
       await this.timeoutFetchAttrs(this)
       this.loadingAttrs = false
     },
+    setTimeoutFetchAttrs (th) {
+      if (th.timeoutTime && !th.sortMode) {
+        th.timeout = setTimeout(th.timeoutFetchAttrs, th.timeoutTime, th)
+      }
+    },
     async timeoutFetchAttrs (th) {
       clearTimeout(th.timeout)
       await th.fetchAttrs()
-      if (th.timeoutTime) {
-        th.timeout = setTimeout(th.timeoutFetchAttrs, th.timeoutTime, th)
-      }
+      th.setTimeoutFetchAttrs(th)
     },
     async onClickDelete (items) {
       if (items.length === 1) {
@@ -306,14 +412,30 @@ export default {
       } else {
         confirm('Удалить выбранные атрибуты?') && this.deleteAttrs(items)
       }
-      if (this.timeoutTime) {
-        clearTimeout(this.timeout)
-        this.timeout = setTimeout(this.timeoutFetchAttrs, this.timeoutTime, this)
-      }
+      clearTimeout(this.timeout)
+      this.setTimeoutFetchAttrs(this)
     },
     openDialogAddAttr (id) {
       this.setDefaultCreate(id)
       this.dialogAddAttr = true
+    },
+    enableSortingMode () {
+      this.sortMode = true
+      this.generateSortModeIndexes()
+    },
+    saveOrdering () {
+      this.sortMode = false
+    },
+    cancelOrdering () {
+      this.sortMode = false
+    },
+    getDisabledUpBtn (item) {
+      let id = this.itemsIds[this.itemsIndexes[item.id] + 1]
+      return id && this.selectedAttrsIds.indexOf(id) !== -1
+    },
+    getDisabledDownBtn (item) {
+      let id = this.itemsIds[this.itemsIndexes[item.id] - 1]
+      return id && this.selectedAttrsIds.indexOf(id) !== -1
     }
   },
   async mounted () {
@@ -324,9 +446,7 @@ export default {
       this.form.attribute_group_id = this.groups[0].id
     }
     this.loadingAttrs = false
-    if (this.timeoutTime) {
-      this.timeout = setTimeout(this.timeoutFetchAttrs, this.timeoutTime, this)
-    }
+    this.setTimeoutFetchAttrs(this)
   },
   beforeDestroy () {
     clearTimeout(this.timeout)
